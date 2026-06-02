@@ -1,0 +1,18 @@
+# Environment and Data
+.env
+site_data/
+
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+
+# OS and IDE files
+.vscode/
+.DS_Store
+*.log
+
+# Python specific
+__pycache__/
+*.py[cod]

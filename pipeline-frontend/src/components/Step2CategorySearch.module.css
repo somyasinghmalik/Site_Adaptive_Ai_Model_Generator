@@ -1,0 +1,120 @@
+/* --- Your Existing Baseline CSS Base --- */
+.card { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 32px; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05); }
+.header { text-align: center; margin-bottom: 24px; }
+.title { font-size: 20px; font-weight: 700; margin: 0 0 4px 0; }
+.urlDisplay { font-size: 12px; color: #94a3b8; margin: 0; word-break: break-all; font-family: monospace; }
+.form { margin-top: 24px; display: flex; flex-direction: column; gap: 16px; }
+.fieldGroup { display: flex; flex-direction: column; gap: 6px; }
+.label { font-size: 14px; font-weight: 600; color: #334155; }
+.input { width: 100%; box-sizing: border-box; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 12px; padding: 14px 16px; font-size: 16px; }
+.input:disabled { opacity: 0.5; cursor: not-allowed; }
+.button { background: #059669; color: #ffffff; border: none; border-radius: 12px; padding: 14px; font-size: 16px; font-weight: 500; cursor: pointer; transition: background 0.2s ease; }
+.button:hover { background: #047857; }
+.button:disabled { background: #cbd5e1; color: #94a3b8; cursor: not-allowed; }
+
+/* --- New Extracted Interface CSS Elements --- */
+.backButton {
+  margin-bottom: 16px;
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  cursor: pointer;
+}
+
+.statusNotice {
+  background: #f1f5f9;
+  padding: 12px;
+  border-radius: 8px;
+  margin-bottom: 15px;
+  color: #475569;
+  font-size: 13px;
+  text-align: left;
+  border: 1px solid #cbd5e1;
+}
+
+.imagePreviewWrapper {
+  margin-top: 10px;
+}
+
+.imagePreview {
+  max-width: 200px;
+  max-height: 200px;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+}
+
+.suggestionsWrapper {
+  margin-top: 22px;
+  text-align: left;
+  background: #f8fafc;
+  padding: 16px;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+}
+
+.suggestionsTitle {
+  margin: 0 0 12px 0;
+  color: #1e293b;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.suggestionsContainer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+/* Base suggestion button blueprint */
+.suggestionBtn {
+  padding: 8px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+}
+
+/* Partial / Standard suggestions configuration */
+.suggestionBtnNormal {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  color: #334155;
+  font-weight: 400;
+}
+.suggestionBtnNormal:hover {
+  background: #f1f5f9;
+}
+
+/* Exact matching path highlights configuration */
+.suggestionBtnExact {
+  background: #eff6ff;
+  border: 1px solid #3b82f6;
+  color: #1d4ed8;
+  font-weight: 600;
+}
+.suggestionBtnExact:hover {
+  background: #dbeafe;
+}
+
+/* Metadata group markers tags */
+.groupTag {
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-right: 4px;
+  text-transform: uppercase;
+}
+
+.groupTagNormal {
+  background: #64748b;
+}
+
+.groupTagExact {
+  background: #3b82f6;
+}

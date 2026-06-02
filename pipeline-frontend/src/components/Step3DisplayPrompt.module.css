@@ -1,0 +1,163 @@
+/* Step3DisplayPrompt.module.css */
+
+.card { 
+  background: #ffffff; 
+  border: 1px solid #e2e8f0; 
+  border-radius: 16px; 
+  padding: 32px; 
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05); 
+  display: flex; 
+  flex-direction: column; 
+  gap: 24px; 
+  max-width: 680px; /* Kept wide enough to visually analyze text structural strings layout cleanly */
+  margin: 0 auto;
+}
+
+.header { 
+  text-align: center; 
+}
+
+.badge { 
+  font-size: 12px; 
+  font-weight: 600; 
+  color: #059669; 
+  background: #ecfdf5; 
+  border: 1px solid #a7f3d0; 
+  padding: 4px 12px; 
+  border-radius: 9999px; 
+  text-transform: uppercase; 
+  letter-spacing: 0.05em;
+}
+
+.title { 
+  font-size: 22px; 
+  font-weight: 700; 
+  color: #0f172a;
+  margin: 14px 0 6px 0; 
+}
+
+.queryDisplay { 
+  font-size: 14px; 
+  color: #64748b; 
+  margin: 0; 
+}
+
+.queryDisplay span { 
+  font-weight: 600; 
+  color: #4f46e5; /* Accent color to draw attention directly to active match terms */
+}
+
+.promptSection { 
+  display: flex; 
+  flex-direction: column; 
+  gap: 8px; 
+}
+
+.label { 
+  font-size: 11px; 
+  font-weight: 700; 
+  color: #94a3b8; 
+  text-transform: uppercase; 
+  letter-spacing: 0.05em;
+}
+
+/* Optimized for multiple multi-line text payloads */
+.terminal { 
+  background: #0f172a; 
+  color: #f8fafc; 
+  border-radius: 12px; 
+  padding: 24px; 
+  font-size: 13.5px; 
+  font-family: 'JetBrains Mono', 'Fira Code', monospace; /* Clean terminal look */
+  line-height: 1.65; 
+  max-height: 420px; /* Increased height capacity safely to parse up to 2-3 detailed image prompts without crushing visibility */
+  overflow-y: auto; 
+  border: 1px solid #334155;
+}
+
+/* Subtle scrollbar smoothing to blend with dark window styles */
+.terminal::-webkit-scrollbar {
+  width: 8px;
+}
+.terminal::-webkit-scrollbar-track {
+  background: #0f172a;
+}
+.terminal::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 4px;
+}
+
+.canvasPlaceholder { 
+  border: 2px dashed #cbd5e1; 
+  background: #f8fafc; 
+  border-radius: 12px; 
+  padding: 24px; 
+  text-align: center; 
+}
+
+.placeholderTitle { 
+  font-size: 13px; 
+  font-weight: 600; 
+  color: #475569; 
+  margin: 0 0 4px 0; 
+}
+
+.placeholderBody { 
+  font-size: 11px; 
+  color: #94a3b8; 
+  margin: 0; 
+}
+
+.resetButton { 
+  background: #0f172a; 
+  color: #ffffff; 
+  border: none; 
+  border-radius: 12px; 
+  padding: 14px; 
+  font-size: 15px; 
+  font-weight: 600; 
+  cursor: pointer; 
+  transition: all 0.2s ease;
+}
+
+.resetButton:hover { 
+  background: #1e293b; 
+  transform: translateY(-1px);
+}
+
+.resetButton:active {
+  transform: translateY(0);
+}
+.imageGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 20px;
+  margin-top: 20px;
+}
+
+.imageCard {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.generatedImage {
+  width: 100%;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+}
+
+.downloadButton {
+  display: inline-block;
+  text-align: center;
+  padding: 10px;
+  border-radius: 8px;
+  background: #2563eb;
+  color: white;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.downloadButton:hover {
+  background: #1d4ed8;
+}
