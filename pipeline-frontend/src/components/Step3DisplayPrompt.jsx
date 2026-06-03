@@ -35,13 +35,33 @@ export default function Step3DisplayPrompt({ searchQuery, resultPrompt, generate
                   className={styles.generatedImage}
                 />
 
-                <a
-                  href={img}
-                  download
+                <button
                   className={styles.downloadButton}
+                  onClick={async () => {
+                    try {
+                      const response = await fetch(img);
+
+                      const blob = await response.blob();
+
+                      const blobUrl = window.URL.createObjectURL(blob);
+
+                      const link = document.createElement("a");
+                      link.href = blobUrl;
+                      link.download = `generated-image-${index + 1}.jpg`;
+
+                      document.body.appendChild(link);
+                      link.click();
+                      link.remove();
+
+                      window.URL.revokeObjectURL(blobUrl);
+                    } catch (err) {
+                      console.error(err);
+                      alert("Failed to download image");
+                    }
+                  }}
                 >
                   Download Image {index + 1}
-                </a>
+                </button>
               </div>
             ))}
           </div>

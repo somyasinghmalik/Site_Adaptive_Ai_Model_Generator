@@ -184,7 +184,7 @@ export default function Step2CategorySearch({ targetUrl, onSearchComplete, onBac
 
       <form onSubmit={handleQueryLookup} className={styles.form}>
         <div className={styles.fieldGroup}>
-          <label className={styles.label}>Target Search Category</label>
+          <label className={styles.label}>Enter Category of Product from Website</label>
           <input
             type="text"
             value={category}
