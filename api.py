@@ -9,13 +9,19 @@ from urllib.parse import urlparse
 from typing import Optional
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
+import requests
+from dotenv import load_dotenv
+load_dotenv()
+
+REPLICATE_TOKEN = os.getenv("REPLICATE_API_TOKEN")
 
 # Link to scraper and search engine
 from rgen10 import run_scraper_pipeline, site_data_store
 from img import search_brand_blueprint
 
-
 app = FastAPI(title="Dynamic Scraper & Search API Bridge")
+
+os.makedirs("generated", exist_ok=True)
 
 app.mount(
     "/generated",
@@ -72,6 +78,38 @@ def execution_wrapper(target_url: str, force_rescrape: bool):
 # ------------------------------------------------------------------
 # ENDPOINTS
 # ------------------------------------------------------------------
+
+@app.get("/api/categories")
+def fetch_all_categories(url: str = Query(..., description="Target brand domain URL")):
+    """Returns all discoverable categories for a given brand domain, ungrouped."""
+    from img import search_brand_blueprint
+    # Use a broad single-char query so all group fillers are returned
+    result = search_brand_blueprint("a", url)
+    
+    all_items = []
+    seen = set()
+
+    if result.get("type") == "suggestions":
+        for item in result["data"]:
+            if item["text"] not in seen:
+                seen.add(item["text"])
+                # Cache the prompt so generate-image works immediately after dropdown pick
+                global_ratio = result.get("global_layout_aspect_ratio", "16:9")
+                prompt_cache[item["text"]] = {
+                    "prompt": item["prompt"],
+                    "aspect_ratio": global_ratio
+                }
+                all_items.append({
+                    "text": item["text"],
+                    "group": item.get("group", ""),
+                    "is_exact": item.get("is_exact", False),
+                    "raw_url": item.get("raw_url", "")   # ← add this line
+                })
+
+    # Sort: group first, then alphabetically within group
+    all_items.sort(key=lambda x: (x["group"].lower(), x["text"].lower()))
+    return {"categories": all_items}
+
 @app.get("/api/check-cache")
 def check_cache_status(url: str = Query(..., description="Target URL to check")):
     dynamic_json_path = resolve_site_json_path(url)
@@ -170,15 +208,19 @@ def search_blueprint(
 @app.post("/api/generate-image")
 async def generate_image(
     category: str = Form(...),
-    image: UploadFile | None = File(None)
+    front_image: UploadFile | None = File(None),
+    back_image: UploadFile | None = File(None)
 ):
-    image_bytes = None
-    image_filename = None
+    images_bytes_list = []
+    image_filenames_list = []
 
-    if image:
-        image_bytes = await image.read()
-        image_filename = image.filename
+    if front_image:
+        images_bytes_list.append(await front_image.read())
+        image_filenames_list.append(front_image.filename)
 
+    if back_image:
+        images_bytes_list.append(await back_image.read())
+        image_filenames_list.append(back_image.filename)
     # Retrieve our cached dictionary config safely
     cached_config = prompt_cache.get(category)
     
@@ -198,11 +240,58 @@ async def generate_image(
     result = process_request(
         prompt=prompt,
         aspect_ratio=aspect_ratio,
-        image_bytes=image_bytes,
-        image_filename=image_filename
+        images_bytes_list=images_bytes_list,
+        image_filenames_list=image_filenames_list
     )
-
     return result
+
+
+@app.post("/api/prediction-status")
+def prediction_status(payload: dict):
+
+    prediction_ids = payload.get("prediction_ids", [])
+
+    images = []
+    all_done = True
+
+    headers = {
+        "Authorization": f"Bearer {REPLICATE_TOKEN}"
+    }
+
+    for pid in prediction_ids:
+
+        response = requests.get(
+            f"https://api.replicate.com/v1/predictions/{pid}",
+            headers=headers
+        )
+
+        if response.status_code != 200:
+            all_done = False
+            continue
+
+        data = response.json()
+
+        status = data.get("status")
+
+        if status not in ["succeeded", "failed"]:
+            all_done = False
+
+        if status == "succeeded":
+
+            output = data.get("output")
+
+            if isinstance(output, list):
+                images.extend(output)
+
+            elif isinstance(output, str):
+                images.append(output)
+
+    return {
+        "completed": all_done,
+        "images": images
+    }
+
+    
 @app.get("/download/{filename}")
 def download_image(filename: str):
     file_path = os.path.join("generated", filename)
@@ -215,4 +304,4 @@ def download_image(filename: str):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("api:app", host="127.0.0.1", port=8000, reload=False)
+    uvicorn.run("api:app", host="0.0.0.0", port=8000, reload=False)

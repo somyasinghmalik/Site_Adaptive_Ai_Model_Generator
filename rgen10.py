@@ -20,6 +20,7 @@ from playwright.sync_api import sync_playwright
 OUTPUT_DIR = "site_data"
 SCREENSHOT_DIR = ""
 output_json = ""
+crawl_queue = queue.Queue()
 
 # Initialize Thread-Safe Queue
 data_queue = queue.Queue()
@@ -161,7 +162,10 @@ def generate_brand_description_from_images(images_list):
 # BACKGROUND REPLICATE CONSUMER
 # -----------------------------
 def replicate_consumer_worker():
-    print("[Replicate Worker] Started and waiting for screenshots...")
+    print(
+        f"[Replicate {threading.current_thread().name}] "
+        "Started and waiting for screenshots..."
+    )
 
     while True:
         task = data_queue.get()
@@ -171,13 +175,16 @@ def replicate_consumer_worker():
             break
         
         item_data, screenshot_index, filepath = task
-        print(f"  [Replicate Worker] Processing: {os.path.basename(filepath)}")
+        print(
+            f"  [{threading.current_thread().name}] "
+            f"Processing: {os.path.basename(filepath)}"
+        )
         
         try:
             if os.path.exists(filepath) and os.path.getsize(filepath) > 0:
                 # EDIT 2: Swapped to optimized condensed product prompt template
                 prompt = """
-                Analyze this e-commerce fashion screenshot.
+                Analyze this e-commerce fashion screenshot, to genrate prompt for an ai model
 
                 Output EXACTLY in this format:
 
@@ -189,17 +196,17 @@ def replicate_consumer_worker():
                 *aspect_ratio*
 
                 Requirements for Content:
-                1. Base Prompt: Create a comprehensive image-generation prompt capturing the environment/background, lighting style, color temperature, fashion aesthetic, model appearance, hairstyle, and overall photography style. End this line with: "aspect ratio portrait".
-                2. Pose A: Describe a natural hero/catalog pose appropriate for the clothing category.
-                3. Pose B: Describe a different camera angle and body position from Pose A.
-                4. Pose C: Describe a dynamic pose emphasizing movement, garment drape, or lifestyle storytelling.
-
+                1. Base Prompt: Create a comprehensive image-generation prompt capturing the environment/background, lighting style, color temperature, fashion aesthetic, model appearance, hairstyle, and overall photography style.
+                2. Pose A:select the most prominant pose from the screenshot provided and discribe it here
+                3. Pose B:select a diffrent pose from the screenshot provided and discribe it here
+                4. Pose C:select a diffrent pose from the screenshot provided and discribe it here
+                if there arent 3 or more diffrent type of poses in the provided screenshot choose generic poses fitting the screenshot
                 Rules:
                 - Poses A, B, and C must be completely distinct from one another.
                 - At the very end, evaluate the layout shape of the clothing images in the screenshot and append the best-fitting aspect ratio choice (*1:1*, *16:9*, *9:16*, *4:3*, or *3:4*) wrapped in asterisks.
 
                 Example Output:
-                Base Prompt: indoor lifestyle setting, rustic stone wall backdrop, soft natural daylight, warm tones, luxury ethnic fashion photography, young adult female model, elegant jewelry, polished makeup, sophisticated commercial styling, high-end fashion campaign, aspect ratio portrait
+                Base Prompt: Create an Image of an ai model wearing the garment in the uploaded image with these properties indoor lifestyle setting, rustic stone wall backdrop, soft natural daylight, warm tones, luxury ethnic fashion photography, young adult female model, elegant jewelry, polished makeup, sophisticated commercial styling, high-end fashion campaign, aspect ratio portrait
                 Pose A: front-facing full-length standing pose with hands relaxed at sides
                 Pose B: seated leaning pose with head tilted toward camera
                 Pose C: walking pose with flowing garment movement and natural stride
@@ -288,7 +295,7 @@ def capture_screenshots(page, url, output_base, item_data):
 
         for i, pos in enumerate(positions):
             page.evaluate(f"window.scrollTo(0, {pos})")
-            page.wait_for_timeout(1500)
+            page.wait_for_timeout(3000)
 
             filename = f"{output_base}_{i+1}.jpg"
             filepath = os.path.join(SCREENSHOT_DIR, filename)
@@ -355,7 +362,7 @@ def run_scraper_pipeline(start_url: str, force_rescrape: bool = False):
         site_data_store["pages"] = []
 
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
+        browser = p.chromium.launch(headless=False)
         page = browser.new_page(viewport={"width": 1440, "height": 900})
 
         print(f"Loading custom target destination: {start_url}")
@@ -370,7 +377,7 @@ def run_scraper_pipeline(start_url: str, force_rescrape: bool = False):
         print("[Playwright] Snapshotting homepage layers for visual DNA modeling...")
         for i, pos in enumerate(homepage_positions):
             page.evaluate(f"window.scrollTo(0, {pos})")
-            page.wait_for_timeout(1500)
+            page.wait_for_timeout(3000)
             
             hp_path = os.path.join(SCREENSHOT_DIR, f"homepage_identity_layer_{i+1}.jpg")
             page.screenshot(path=hp_path, type="jpeg", quality=80)
@@ -390,45 +397,124 @@ def run_scraper_pipeline(start_url: str, force_rescrape: bool = False):
         print(f"\n[Brand Blueprint Saved To Master Key]:\n> {site_data_store['global_brand_visual_blueprint']}\n")
 
         # Start consumer thread worker
-        consumer_thread = threading.Thread(target=replicate_consumer_worker, daemon=True)
-        consumer_thread.start()
+        NUM_REPLICATE_WORKERS = 4
+
+        consumer_threads = []
+
+        for i in range(NUM_REPLICATE_WORKERS):
+            t = threading.Thread(
+                target=replicate_consumer_worker,
+                daemon=True,
+                name=f"REP-{i+1}"
+            )
+
+            t.start()
+            consumer_threads.append(t)
 
         links = extract_links(page)
         groups = build_groups(links)
-
-        for group_name, items in groups.items():
-            print(f"\n--- PROCESSING GROUP: {group_name} ---")
-            for item in items:
-                url = item["url"]
-                print(f"[Playwright] Snapping: {url}")
-
-                filename_base = safe_filename(url)
-                
-                data_entry = {
-                    "group": group_name,
-                    "url": url,
-                    "anchor_text": item["text"],
-                    "screenshots": [] 
-                }
-                
-                with data_lock:
-                    site_data_store["pages"].append(data_entry)
-
-                capture_screenshots(page, url, filename_base, data_entry)
-                time.sleep(0.5)
-
         browser.close()
 
+        total = 0
+
+        print("\n=== LINK GROUP SUMMARY ===")
+
+        for group_name, items in groups.items():
+            count = len(items)
+            total += count
+            print(f"{group_name:<20} {count}")
+
+        print("--------------------------")
+        print(f"TOTAL LINKS: {total}")
+        print("==========================\n")
+
+        for group_name, items in groups.items():
+            for item in items:
+                crawl_queue.put((group_name, item))
+        
+        NUM_PLAYWRIGHT_WORKERS = 2
+
+        playwright_threads = []
+
+        for i in range(NUM_PLAYWRIGHT_WORKERS):
+            t = threading.Thread(
+                target=playwright_worker,
+                name=f"PW-{i+1}"
+            )
+
+            t.start()
+            playwright_threads.append(t)
+
+        for t in playwright_threads:
+            t.join()
+
     print("\n[Playwright] Finished crawling all pages. Waiting for Replicate to catch up...")
-    data_queue.put(None)
-    consumer_thread.join()
+    for _ in range(NUM_REPLICATE_WORKERS):
+        data_queue.put(None)
+
+    for t in consumer_threads:
+        t.join()
     print(f"\nSUCCESS: Pipeline finished execution perfectly. Dataset saved: {output_json}")
+def playwright_worker():
+    with sync_playwright() as p:
+
+        profile_dir = os.path.join(
+            "profiles",
+            threading.current_thread().name
+        )
+
+        os.makedirs(profile_dir, exist_ok=True)
+
+        context = p.chromium.launch_persistent_context(
+            user_data_dir=profile_dir,
+            headless=True,
+            viewport={"width": 1440, "height": 900},
+            locale="en-US",
+            timezone_id="Asia/Kolkata"
+        )
+
+        page = (
+            context.pages[0]
+            if context.pages
+            else context.new_page()
+        )
+
+        while True:
+            try:
+                group_name, item = crawl_queue.get_nowait()
+            except queue.Empty:
+                break
+
+            url = item["url"]
+
+            print(f"[Worker {threading.current_thread().name}] {url}")
+
+            data_entry = {
+                "group": group_name,
+                "url": url,
+                "anchor_text": item["text"],
+                "screenshots": []
+            }
+
+            with data_lock:
+                site_data_store["pages"].append(data_entry)
+
+            capture_screenshots(
+                page,
+                url,
+                safe_filename(url),
+                data_entry
+            )
+
+            crawl_queue.task_done()
+
+        context.close()
 
 # -----------------------------
 # DIRECT TERMINAL EXECUTION TEST
 # -----------------------------
 if __name__ == "__main__":
-    TEST_URL = "https://seeaash.in/" 
+    TEST_URL = "https://nike.in/" 
     
     print(f"=== Starting Standalone Terminal Test for: {TEST_URL} ===")
     

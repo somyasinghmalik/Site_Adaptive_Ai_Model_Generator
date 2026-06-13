@@ -44,6 +44,119 @@
   border: 1px solid #cbd5e1;
 }
 
+.uploadGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.uploadPanel {
+  background: #ffffff;
+  border: 1px solid #dbe3ec;
+  border-radius: 8px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.uploadHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.uploadTitle {
+  color: #1e293b;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.uploadHint {
+  color: #64748b;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  padding: 5px 8px;
+}
+
+.uploadHintRequired {
+  color: #065f46;
+  background: #d1fae5;
+  border: 1px solid #a7f3d0;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  padding: 5px 8px;
+}
+
+.fileInput {
+  width: 100%;
+  box-sizing: border-box;
+  color: #334155;
+  font-size: 13px;
+}
+
+.fileInput::file-selector-button {
+  background: #0f766e;
+  border: 0;
+  border-radius: 7px;
+  color: #ffffff;
+  cursor: pointer;
+  font-weight: 700;
+  margin-right: 10px;
+  padding: 8px 10px;
+}
+
+.fileInput:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.fileInput:disabled::file-selector-button {
+  cursor: not-allowed;
+}
+
+.previewFrame {
+  align-items: center;
+  aspect-ratio: 4 / 3;
+  background: #f8fafc;
+  border: 1px dashed #cbd5e1;
+  border-radius: 8px;
+  display: flex;
+  justify-content: center;
+  overflow: hidden;
+  width: 100%;
+}
+
+.previewImage {
+  height: 100%;
+  object-fit: contain;
+  width: 100%;
+}
+
+.emptyPreview {
+  color: #94a3b8;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 12px;
+  text-align: center;
+}
+
+.fileName {
+  color: #475569;
+  font-size: 12px;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .suggestionsWrapper {
   margin-top: 22px;
   text-align: left;
@@ -117,4 +230,14 @@
 
 .groupTagExact {
   background: #3b82f6;
+}
+
+@media (max-width: 720px) {
+  .card {
+    padding: 22px;
+  }
+
+  .uploadGrid {
+    grid-template-columns: 1fr;
+  }
 }

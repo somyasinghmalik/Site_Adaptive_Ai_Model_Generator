@@ -1,8 +1,8 @@
 import os
 import re
-import time
 import base64
 import requests
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -11,128 +11,98 @@ REPLICATE_API_TOKEN = os.getenv("REPLICATE_API_TOKEN")
 
 HEADERS = {
     "Authorization": f"Bearer {REPLICATE_API_TOKEN}",
-    "Content-Type": "application/json",
-    "Prefer": "wait"
+    "Content-Type": "application/json"
 }
 
 URL = "https://api.replicate.com/v1/models/google/nano-banana-2/predictions"
 
+def _to_data_url(image_bytes, filename=None):
+    mime = "image/jpeg"
+    if filename:
+        ext = filename.lower().split(".")[-1]
+        if ext == "png": mime = "image/png"
+        elif ext == "webp": mime = "image/webp"
+    b64 = base64.b64encode(image_bytes).decode("utf-8")
+    return f"data:{mime};base64,{b64}"
 
-def process_request(prompt, aspect_ratio="16:9", image_bytes=None, image_filename=None):
-    print(f"\n[Nano Engine] Aspect Ratio: {aspect_ratio}")
+def _dispatch_single_pose(final_prompt, target_ratio, image_input):
+    """Worker sub-routine to send prediction request to Replicate instantly."""
+    payload = {
+        "input": {
+            "prompt": final_prompt,
+            "resolution": "1K",
+            "image_input": image_input,
+            "aspect_ratio": target_ratio,
+            "image_search": False,
+            "google_search": False,
+            "output_format": "jpg"
+        }
+    }
+    try:
+        response = requests.post(URL, headers=HEADERS, json=payload, timeout=15)
+        if response.status_code in [200, 201]:
+            data = response.json()
+            return {
+                "prediction_id": data.get("id"),
+                "status": data.get("status", "starting"),
+                "prompt_type": final_prompt[:30]
+            }
+        else:
+            print(f"[Worker Error] HTTP {response.status_code}: {response.text}")
+            return None
+    except Exception as e:
+        print(f"[Worker Exception] Request failed: {str(e)}")
+        return None
 
+def process_request(prompt, aspect_ratio="3:4", images_bytes_list=None, image_filenames_list=None):
+    """Dispatches multiple pose generation loops concurrently using multi-threaded workers."""
     raw_blocks = [p.strip() for p in prompt.split("---") if p.strip()]
-    generated_image_urls = []
-
+    
     image_input = []
+    if images_bytes_list:
+        for idx, img_bytes in enumerate(images_bytes_list):
+            filename = image_filenames_list[idx] if image_filenames_list and idx < len(image_filenames_list) else None
+            image_input.append(_to_data_url(img_bytes, filename))
 
-    # Convert uploaded image into data URL
-    if image_bytes:
-        mime = "image/jpeg"
+    tasks_to_dispatch = []
 
-        if image_filename:
-            ext = image_filename.lower().split(".")[-1]
-
-            if ext == "png":
-                mime = "image/png"
-            elif ext == "webp":
-                mime = "image/webp"
-
-        b64 = base64.b64encode(image_bytes).decode("utf-8")
-
-        image_input = [
-            f"data:{mime};base64,{b64}"
-        ]
-
-    for b_idx, block in enumerate(raw_blocks):
-
+    for block in raw_blocks:
         is_page_prompt = "Pose A:" in block
-
-        base_prompt_match = re.search(
-            r"Base Prompt:\s*(.*?)(?=\nPose A:|$)",
-            block,
-            re.DOTALL
-        )
-
-        base_text = (
-            base_prompt_match.group(1).strip()
-            if base_prompt_match
-            else block.strip()
-        )
-
-        pose_matches = re.findall(
-            r"Pose [A-C]:\s*(.*?)(?=\nPose [A-C]:|$)",
-            block,
-            re.DOTALL
-        )
+        base_prompt_match = re.search(r"Base Prompt:\s*(.*?)(?=\nPose A:|$)", block, re.DOTALL)
+        base_text = base_prompt_match.group(1).strip() if base_prompt_match else block.strip()
+        pose_matches = re.findall(r"Pose [A-C]:\s*(.*?)(?=\nPose [A-C]:|$)", block, re.DOTALL)
 
         if is_page_prompt:
-            ratio_match = re.search(
-                r"\*\s*(\d+:\d+)\s*\*",
-                block
-            )
-
-            target_ratio = (
-                ratio_match.group(1)
-                if ratio_match
-                else aspect_ratio
-            )
-
+            ratio_match = re.search(r"\*\s*(\d+:\d+)\s*\*", block)
+            target_ratio = ratio_match.group(1) if ratio_match else aspect_ratio
         else:
             target_ratio = aspect_ratio
             pose_matches = [""]
 
         for pose_text in pose_matches[:3]:
-
-            final_prompt = f"{base_text}, {pose_text.strip()}".strip(", ")
-
-            payload = {
-                "input": {
-                    "prompt": final_prompt,
-                    "resolution": "1K",
-                    "image_input": image_input,
-                    "aspect_ratio": target_ratio,
-                    "image_search": False,
-                    "google_search": False,
-                    "output_format": "jpg"
-                }
-            }
-
-            print("\n========================")
-            print("BLOCK:", b_idx + 1)
-            print("FINAL PROMPT:")
-            print(final_prompt)
-            print("ASPECT RATIO:", target_ratio)
-            print("IMAGE ATTACHED:", len(image_input) > 0)
-            print("========================\n")
-
-            response = requests.post(
-                URL,
-                headers=HEADERS,
-                json=payload
+            raw_combined_text = f"{base_text}, {pose_text.strip()}".strip(", ")
+            final_prompt = (
+                f"Context: Preserve the exact clothing type, hemlines, color, and garment style shown in the provided image. "
+                f"Action: {raw_combined_text}"
             )
+            tasks_to_dispatch.append((final_prompt, target_ratio))
 
-            print(response.status_code)
+    prediction_trackers = []
+    
+    max_workers = max(1, len(tasks_to_dispatch))
 
-            if response.status_code not in [200, 201]:
-                print(response.text)
-                continue
 
-            data = response.json()
-            print("\nFULL REPLICATE RESPONSE:")
-            print(data)
-
-            output = data.get("output")
-
-            if isinstance(output, list):
-                generated_image_urls.extend(output)
-
-            elif isinstance(output, str):
-                generated_image_urls.append(output)
-
-            time.sleep(1)
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = [
+            executor.submit(_dispatch_single_pose, prompt_text, ratio, image_input)
+            for prompt_text, ratio in tasks_to_dispatch
+        ]
+        for future in as_completed(futures):
+            res = future.result()
+            if res and res.get("prediction_id"):
+                prediction_trackers.append(res)
 
     return {
-        "status": "success",
-        "images": generated_image_urls
+        "status": "dispatched",
+        "trackers": prediction_trackers
     }
