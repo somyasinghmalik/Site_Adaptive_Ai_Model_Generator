@@ -18,3 +18,10 @@ __pycache__/
 *.py[cod]
 
 profiles/
+
+.git
+venv/
+.venv/
+*.db
+*.sqlite
+.pytest_cache/

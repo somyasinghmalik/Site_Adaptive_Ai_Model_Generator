@@ -1,7 +1,10 @@
 import React, { useState } from 'react';
 import styles from './Step1UrlInput.module.css';
+import { getUserId } from "./utils/user";
+
 
 export default function Step1UrlInput({ onConfigured }) {
+  const userId = getUserId();
   const [url, setUrl] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPrompt, setShowPrompt] = useState(false);
@@ -23,7 +26,9 @@ export default function Step1UrlInput({ onConfigured }) {
 
     try {
       const normalizedUrl = cleanUrlParam(url);
-      const res = await fetch(`http://127.0.0.1:8000/api/check-cache?url=${encodeURIComponent(normalizedUrl)}`);
+      const res = await fetch(
+        `http://127.0.0.1:8000/api/check-cache?user_id=${encodeURIComponent(userId)}&url=${encodeURIComponent(normalizedUrl)}`
+      );
       
       if (res.ok) {
         const data = await res.json();
@@ -52,13 +57,27 @@ export default function Step1UrlInput({ onConfigured }) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
+          user_id: userId,
           url: targetUrl,
           force_rescrape: forceRescrapeFlag 
         })
       });
       
       if (res.ok) {
-        onConfigured(targetUrl);
+
+          const data = await res.json();
+
+          const jobId = data.job_id;
+
+          sessionStorage.setItem(
+              "job_id",
+              jobId
+          );
+
+          onConfigured(
+              targetUrl,
+              jobId
+          );
       } else {
         alert('Backend engine rejected initial scan request parameters.');
         setLoading(false);
@@ -72,8 +91,8 @@ export default function Step1UrlInput({ onConfigured }) {
   return (
     <div className={styles.card}>
       <div className={styles.header}>
-        <h1 className={styles.title}>Pipeline Analysis Bench</h1>
-        <p className={styles.subtitle}>Provide an e-commerce retail store URL target to profile its design aesthetic mapping parameters.</p>
+        <h1 className={styles.title}>Site-Adaptive AI Model Genration</h1>
+        <p className={styles.subtitle}>Provide an e-commerce retail store URL to genrate a detailed biodata of your website.</p>
       </div>
       
       <form onSubmit={handlePreFlightCheck} className={styles.form}>

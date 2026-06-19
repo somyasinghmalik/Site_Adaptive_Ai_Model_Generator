@@ -7,7 +7,7 @@ site_biodata_cache = {}
 last_modified_cache = {}
 
 
-def load_json_if_changed(brand_domain: str) -> str:
+def load_json_if_changed(user_id: str, brand_domain: str) -> str:
     """
     Normalizes incoming website URLs or domains, locates their respective
     JSON data file within 'site_data', and checks file modification times 
@@ -25,7 +25,7 @@ def load_json_if_changed(brand_domain: str) -> str:
     )
 
     # Map directly into your custom workspace asset storage pathing rules
-    json_path = os.path.join("site_data", clean_domain, f"{clean_domain}_biodata.json")
+    json_path = os.path.join("site_data",user_id, clean_domain, f"{clean_domain}_biodata.json")
 
     try:
         if not os.path.exists(json_path):
@@ -48,14 +48,14 @@ def load_json_if_changed(brand_domain: str) -> str:
     return json_path
 
 
-def search_brand_blueprint(search_input: str, brand_domain: str) -> dict:
+def search_brand_blueprint(search_input: str, brand_domain: str,user_id: str) -> dict:
     """
     Queries the localized dataset of a specific brand domain context. Aggregates both 
     exact matching categories and partial alternatives to hand total selection visibility 
     over to the user interface layer, completely avoiding early direct prompt returns.
     """
     # 1. Dynamically target, resolve, and load the correct brand profile JSON
-    json_path = load_json_if_changed(brand_domain)
+    json_path = load_json_if_changed(user_id, brand_domain)
     data = site_biodata_cache.get(json_path, {})
 
     # Extract our primary structures
@@ -123,7 +123,11 @@ def search_brand_blueprint(search_input: str, brand_domain: str) -> dict:
                     "is_group_filler": False,
                     "group": page.get("group", "").strip(),
                     "raw_url": page.get("url", "") or "",
-                    "prompt": prompt_payload["data"]
+                    "prompt": prompt_payload["data"],
+                    "aspect_ratio": prompt_payload.get(
+                        "aspect_ratio",
+                        global_ratio
+                    )
                 })
 
     # 6. DYNAMIC FILLER ADDITION
@@ -150,7 +154,11 @@ def search_brand_blueprint(search_input: str, brand_domain: str) -> dict:
                         "is_group_filler": True,
                         "group": page.get("group", "").strip(),
                         "raw_url": page.get("url", "") or "",
-                        "prompt": prompt_payload["data"]
+                        "prompt": prompt_payload["data"],
+                        "aspect_ratio": prompt_payload.get(
+                            "aspect_ratio",
+                            global_ratio
+                        )
                     })
 
     if suggestions:
@@ -160,6 +168,7 @@ def search_brand_blueprint(search_input: str, brand_domain: str) -> dict:
     return {"type": "prompt", "data": global_fallback, "global_layout_aspect_ratio": global_ratio}
 
 
+
 def extract_page_prompts(page: dict, fallback: str) -> dict:
     """
     Helper function to safely extract clean visual detail layers from 
@@ -167,10 +176,11 @@ def extract_page_prompts(page: dict, fallback: str) -> dict:
     """
     screenshots = page.get("screenshots", [])
     prompts = []
-
+    page_ratio = "3:4"
     for snap in screenshots:
         details = snap.get("photo_details", "").strip()
-        ratio = snap.get("layout_aspect_ratio", "3:4")  # <-- Pull layout ratio out of JSON structure
+        ratio = snap.get("layout_aspect_ratio", "3:4")
+        page_ratio=ratio  # <-- Pull layout ratio out of JSON structure
         details_lower = details.lower()
 
         if (
@@ -183,7 +193,7 @@ def extract_page_prompts(page: dict, fallback: str) -> dict:
             prompts.append(f"{details}\n*{ratio}*")
 
     if prompts:
-        return {"type": "prompt", "data": "\n\n---\n\n".join(prompts)}
+        return {"type": "prompt", "data": "\n\n---\n\n".join(prompts), "aspect_ratio": page_ratio}
     
     return {"type": "prompt", "data": fallback}
 
@@ -191,8 +201,8 @@ if __name__ == "__main__":
     print("=== Standalone Engine Verification Layer ===")
     brand_input = input("Enter target brand domain or full URL context: ").strip()
     user_query = input("Enter category filter search query terms: ").strip()
-
-    result_payload = search_brand_blueprint(user_query, brand_input)
+    user_id = "nike123"
+    result_payload = search_brand_blueprint(user_query, brand_input,user_id)
 
     print("\n" + "=" * 30 + " SYSTEM PROMPT EXECUTION OUTPUT " + "=" * 30)
     print(f"Payload Type: {result_payload['type']}")

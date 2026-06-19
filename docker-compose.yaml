@@ -1,0 +1,49 @@
+services:
+
+  postgres:
+    image: postgres:18
+
+    environment:
+      POSTGRES_DB: fashion_ai
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+
+    ports:
+      - "5432:5432"
+
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+
+    ports:
+      - "8000:8000"
+
+    volumes:
+      - .:/app
+      - ./site_data:/app/site_data
+      - ./generated:/app/generated
+
+    env_file:
+      - .env
+
+    depends_on:
+      - postgres
+  frontend:
+    build:
+      context: ./pipeline-frontend
+
+    ports:
+      - "5173:5173"
+
+    volumes:
+      - ./pipeline-frontend:/app
+      - /app/node_modules
+
+    depends_on:
+      - backend
+volumes:
+  postgres_data:

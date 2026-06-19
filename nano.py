@@ -54,9 +54,37 @@ def _dispatch_single_pose(final_prompt, target_ratio, image_input):
         print(f"[Worker Exception] Request failed: {str(e)}")
         return None
 
-def process_request(prompt, aspect_ratio="3:4", images_bytes_list=None, image_filenames_list=None):
+def get_option(options, key):
+    if not options:
+        return None
+
+    item = options.get(key)
+
+    if not item:
+        return None
+
+    if item.get("mode") == "AI_SELECTED":
+        return None
+
+    if item.get("mode") == "CUSTOM":
+        return item.get("custom")
+
+    return item.get("mode")
+
+def process_request(prompt, aspect_ratio="3:4", options=None, images_bytes_list=None, image_filenames_list=None):
     """Dispatches multiple pose generation loops concurrently using multi-threaded workers."""
     raw_blocks = [p.strip() for p in prompt.split("---") if p.strip()]
+    override_text = ""
+
+    if options:
+
+        for key in options:
+
+            value = get_option(options, key)
+
+            if value:
+
+                override_text += f"\n{key}: {value}"
     
     image_input = []
     if images_bytes_list:
@@ -82,8 +110,18 @@ def process_request(prompt, aspect_ratio="3:4", images_bytes_list=None, image_fi
         for pose_text in pose_matches[:3]:
             raw_combined_text = f"{base_text}, {pose_text.strip()}".strip(", ")
             final_prompt = (
-                f"Context: Preserve the exact clothing type, hemlines, color, and garment style shown in the provided image. "
-                f"Action: {raw_combined_text}"
+                f"Context: Preserve the exact clothing type, hemlines, color, and garment style shown in the provided image.\n\n"
+
+                f"Action: {raw_combined_text}\n\n"
+
+                f"IMPORTANT INSTRUCTIONS:\n"
+                f"1. Use all information from the Action section above.\n"
+                f"2. Use the USER OVERRIDES section below as additional requirements.\n"
+                f"3. If a USER OVERRIDE conflicts with an earlier instruction, replace ONLY the conflicting detail.\n"
+                f"4. Keep all non-conflicting details from the original prompt.\n\n"
+
+                f"USER OVERRIDES:\n"
+                f"{override_text}"
             )
             tasks_to_dispatch.append((final_prompt, target_ratio))
 

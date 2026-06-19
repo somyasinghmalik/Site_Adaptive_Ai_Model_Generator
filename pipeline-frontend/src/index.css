@@ -15,6 +15,7 @@ body {
 }
 
 .app-card-wrapper {
-  width: 100%;
-  max-width: 550px;
+  width: 80%;
+  max-width: 1000px;
+  max-height: fit-content;
 }

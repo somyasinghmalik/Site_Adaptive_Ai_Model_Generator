@@ -284,8 +284,8 @@ def capture_screenshots(page, url, output_base, item_data, screenshot_dir, data_
         page.wait_for_timeout(3000)
 
         page_height = page.evaluate("document.body.scrollHeight")
-        positions = [0, int(page_height * 0.35)] # (number of screenshots) add more positions to capture more screenshots
-        priorities = [1.0, 0.7]# used for testing only no need to touch
+        positions = [0, int(page_height * 0.35)]
+        priorities = [1.0, 0.7]
 
         for i, pos in enumerate(positions):
             page.evaluate(f"window.scrollTo(0, {pos})")
@@ -316,7 +316,6 @@ def capture_screenshots(page, url, output_base, item_data, screenshot_dir, data_
 def run_scraper_pipeline(
     start_url,
     force_rescrape=False,
-    user_id="",
     job_id=""
 ):
     global site_data_store
@@ -339,7 +338,7 @@ def run_scraper_pipeline(
     # Set paths bound directly to this specific target site domain dynamically
     output_dir = os.path.join(
         "site_data",
-        user_id,
+        job_id,
         safe_domain
     )
 
@@ -550,7 +549,7 @@ def playwright_worker(screenshot_dir, job_id, crawl_queue, data_queue):
 # DIRECT TERMINAL EXECUTION TEST
 # -----------------------------
 if __name__ == "__main__":
-    TEST_URL = "https://seeaash.in/" 
+    TEST_URL = "https://nike.in/" 
     
     print(f"=== Starting Standalone Terminal Test for: {TEST_URL} ===")
     
@@ -559,5 +558,5 @@ if __name__ == "__main__":
     
     run_scraper_pipeline(
         TEST_URL,
-        job_id="seeaash456"
+        job_id="nike123"
     )
